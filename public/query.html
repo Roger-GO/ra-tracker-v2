@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RA Tracker - Natural Language Query</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .query-section {
+            flex: 1;
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .history-section {
+            width: 250px;
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+        }
+        input {
+            width: calc(100% - 22px);
+            background-color: #3d3d3d;
+            color: #e0e0e0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .suggestions {
+            margin-top: 10px;
+        }
+        .suggestion {
+            display: inline-block;
+            margin-right: 10px;
+            padding: 5px 10px;
+            background-color: #3d3d3d;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .suggestion:hover {
+            background-color: #4d4d4d;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #3d3d3d;
+        }
+        th {
+            background-color: #3d3d3d;
+        }
+        .loading {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .error {
+            display: none;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ff6b6b;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="query-section">
+            <h1>Natural Language Query</h1>
+            <input type="text" id="queryInput" placeholder="Ask about costs, agents, or activity...">
+            <button id="submitButton">Submit</button>
+            <div class="suggestions">
+                <span class="suggestion" onclick="useSuggestion('How much did we spend today?')">How much did we spend today?</span>
+                <span class="suggestion" onclick="useSuggestion('Show agent activity')">Show agent activity</span>
+                <span class="suggestion" onclick="useSuggestion('Which model is most expensive?')">Which model is most expensive?</span>
+            </div>
+            <div id="loading" class="loading">Loading...</div>
+            <div id="error" class="error"></div>
+            <div id="results" class="results"></div>
+        </div>
+        <div class="history-section">
+            <h2>Query History</h2>
+            <ul id="historyList"></ul>
+        </div>
+    </div>
+
+    <script>
+        const queryInput = document.getElementById('queryInput');
+        const submitButton = document.getElementById('submitButton');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const resultsDiv = document.getElementById('results');
+        const historyList = document.getElementById('historyList');
+        let queryHistory = [];
+
+        function useSuggestion(suggestion) {
+            queryInput.value = suggestion;
+        }
+
+        function displayResults(response) {
+            if (response.data && response.data.length > 0) {
+                let table = '<table><thead><tr>';
+                Object.keys(response.data[0]).forEach(key => {
+                    table += `<th>${key}</th>`;
+                });
+                table += '</tr></thead><tbody>';
+                response.data.forEach(row => {
+                    table += '<tr>';
+                    Object.values(row).forEach(value => {
+                        table += `<td>${value}</td>`;
+                    });
+                    table += '</tr>';
+                });
+                table += '</tbody></table>';
+                resultsDiv.innerHTML = table;
+            } else {
+                resultsDiv.innerHTML = '<pre>' + JSON.stringify(response.parsed, null, 2) + '</pre>';
+            }
+        }
+
+        function addToHistory(query) {
+            if (queryHistory.length >= 10) {
+                queryHistory.pop();
+            }
+            queryHistory.unshift(query);
+            historyList.innerHTML = '';
+            queryHistory.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                li.onclick = () => useSuggestion(item);
+                historyList.appendChild(li);
+            });
+        }
+
+        function handleError(error) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = error.message || 'An error occurred';
+        }
+
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitQuery();
+            }
+        });
+
+        submitButton.addEventListener('click', submitQuery);
+
+        function submitQuery() {
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            loadingDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            resultsDiv.innerHTML = '';
+
+            fetch('/api/v2/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingDiv.style.display = 'none';
+                displayResults(data);
+                addToHistory(query);
+            })
+            .catch(error => {
+                loadingDiv.style.display = 'none';
+                handleError(error);
+            });
+        }
+    </script>
+</body>
+</html>

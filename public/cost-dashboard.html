@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw Tracker - Cost Analytics</title>
+  <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'></script>
+  <link rel='preconnect' href='https://fonts.googleapis.com'>
+  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+  <link href='https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap' rel='stylesheet'>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --bg-primary: #0b1220;
+      --bg-secondary: #111b2e;
+      --bg-tertiary: #16243b;
+      --text-primary: #eaf1ff;
+      --text-secondary: #a4b3cb;
+      --accent: #2a6df4;
+      --accent-hover: #1f5fd8;
+      --success: #1ea97c;
+      --success-dim: rgba(0, 186, 124, 0.2);
+      --warning: #f59e0b;
+      --error: #e24a4a;
+      --error-dim: rgba(244, 33, 46, 0.2);
+      --border: #2a3b59;
+    }
+    
+    body {
+      font-family: 'Manrope', 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 30px;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 8px 16px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .nav-link:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+    
+    .nav-link.active {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .nav-tab {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .nav-tab:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+    
+    .nav-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      font-size: 14px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .period-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .period-btn {
+      padding: 6px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    
+    .period-btn:hover {
+      background: var(--bg-secondary);
+    }
+    
+    .period-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    /* Summary Cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .summary-card {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent);
+    }
+    
+    .summary-card.cost::before { background: var(--success); }
+    .summary-card.tokens::before { background: #4f8af7; }
+    .summary-card.requests::before { background: var(--warning); }
+    .summary-card.trend::before { background: var(--accent); }
+    
+    .summary-label {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .summary-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    
+    .summary-value.cost {
+      color: var(--success);
+    }
+    
+    .summary-value.cost-live {
+      color: var(--success);
+      font-variant-numeric: tabular-nums;
+    }
+    
+    .trend-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    
+    .trend-indicator.up {
+      background: var(--error-dim);
+      color: var(--error);
+    }
+    
+    .trend-indicator.down {
+      background: var(--success-dim);
+      color: var(--success);
+    }
+    
+    /* Charts Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .charts-grid.single {
+      grid-template-columns: 1fr;
+    }
+    
+    .chart-section {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+    }
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+    
+    .chart-container.donut {
+      height: 280px;
+    }
+    
+    .chart-container.bar {
+      height: 250px;
+    }
+    
+    /* Cost breakdown table */
+    .breakdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    
+    .breakdown-table th,
+    .breakdown-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    
+    .breakdown-table th {
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    
+    .breakdown-table tr:hover {
+      background: var(--bg-tertiary);
+    }
+    
+    .model-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    
+    .progress-fill.cost {
+      background: var(--success);
+    }
+    
+    /* Real-time indicator */
+    .realtime-cost {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    
+    .cost-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: costPulse 1s infinite;
+    }
+    
+    @keyframes costPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+    
+    /* Loading state */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--text-secondary);
+    }
+    
+    .loading::after {
+      content: '';
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <h1>Cost Analytics</h1>
+        <nav class="nav-links">
+          <a href="/" class="nav-link">Activity</a>
+          <a href="/cost-dashboard.html" class="nav-link active">Cost Analytics</a>
+        </nav>
+      </div>
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        Live
+      </div>
+    </header>
+    
+    <!-- Period Selector -->
+    <div class="period-selector">
+      <button class="period-btn active" data-period="daily" onclick="setPeriod('daily')">Daily</button>
+      <button class="period-btn" data-period="weekly" onclick="setPeriod('weekly')">Weekly</button>
+      <button class="period-btn" data-period="monthly" onclick="setPeriod('monthly')">Monthly</button>
+      <button class="period-btn" data-period="all" onclick="setPeriod('all')">All Time</button>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <div class="summary-card cost">
+        <div class="summary-label">
+          <span>Total Cost</span>
+        </div>
+        <div class="summary-value cost" id="totalCost">$0.00</div>
+      </div>
+      
+      <div class="summary-card tokens">
+        <div class="summary-label">
+          <span>Total Tokens</span>
+        </div>
+        <div class="summary-value" id="totalTokens">0</div>
+      </div>
+      
+      <div class="summary-card requests">
+        <div class="summary-label">
+          <span>Total Requests</span>
+        </div>
+        <div class="summary-value" id="totalRequests">0</div>
+      </div>
+      
+      <div class="summary-card trend">
+        <div class="summary-label">
+          <span>Cost Trend</span>
+        </div>
+        <div class="summary-value">
+          <span id="trendValue">--</span>
+          <span class="trend-indicator" id="trendIndicator"></span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- OpenRouter validation -->
+    <div class="chart-section" style="margin-bottom: 20px;">
+      <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="chart-title">OpenRouter</h3>
+        <button type="button" class="period-btn" onclick="loadOpenRouterValidation(true)" style="padding: 6px 12px;">Refresh</button>
+      </div>
+      <div id="openrouterCard" class="summary-grid" style="gap: 12px;">
+        <div class="summary-card" style="flex: 1;">
+          <div class="summary-label">OpenRouter total used (account)</div>
+          <div class="summary-value" id="openrouterUsage">--</div>
+        </div>
+        <div class="summary-card" style="flex: 1;">
+          <div class="summary-label">Local tracked cost</div>
+          <div class="summary-value" id="openrouterLocal">--</div>
+        </div>
+        <div class="summary-card" style="flex: 1;">
+          <div class="summary-label">Validation</div>
+          <div class="summary-value" id="openrouterValid">--</div>
+        </div>
+      </div>
+      <p id="openrouterMessage" style="margin: 8px 0 0; font-size: 13px; color: var(--text-secondary);"></p>
+    </div>
+    
+    <!-- Charts Row 1: Time Series + Model Breakdown -->
+    <div class="charts-grid">
+      <!-- Cost Over Time Chart -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <h3 class="chart-title">Cost Over Time</h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="costTimeChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Cost by Model (Donut) -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <h3 class="chart-title">Cost by Model</h3>
+        </div>
+        <div class="chart-container donut">
+          <canvas id="modelDonutChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Charts Row 2: Agent Breakdown + Table -->
+    <div class="charts-grid">
+      <!-- Cost by Agent (Bar) -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <h3 class="chart-title">Cost by Agent</h3>
+        </div>
+        <div class="chart-container bar">
+          <canvas id="agentBarChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Cost Breakdown Table -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <h3 class="chart-title">Top Models</h3>
+        </div>
+        <div style="max-height: 250px; overflow-y: auto;">
+          <table class="breakdown-table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Cost</th>
+                <th>Tokens</th>
+              </tr>
+            </thead>
+            <tbody id="modelTableBody">
+              <tr><td colspan="3" class="loading">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Real-time Cost Counter -->
+    <div class="chart-section" style="margin-top: 20px;">
+      <div class="chart-header">
+        <h3 class="chart-title">Real-Time Cost Counter</h3>
+      </div>
+      <div class="summary-grid" style="margin-bottom: 0;">
+        <div class="summary-card cost">
+          <div class="summary-label">Session Cost</div>
+          <div class="realtime-cost">
+            <span class="cost-pulse"></span>
+            <span class="summary-value cost-live" id="sessionCost">$0.0000</span>
+          </div>
+        </div>
+        <div class="summary-card tokens">
+          <div class="summary-label">Tokens This Session</div>
+          <div class="summary-value" id="sessionTokens">0</div>
+        </div>
+        <div class="summary-card requests">
+          <div class="summary-label">Requests This Session</div>
+          <div class="summary-value" id="sessionRequests">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Average Cost/Request</div>
+          <div class="summary-value" id="avgCostPerRequest">$0.0000</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      Last updated: <span id="lastUpdated">--</span>
+    </div>
+  </div>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Configuration
+    const API_BASE = '';
+    let currentPeriod = 'daily';
+    let costTimeChart, modelDonutChart, agentBarChart;
+    let socket;
+    let sessionStats = { cost: 0, tokens: 0, requests: 0 };
+    
+    // Chart.js default configuration
+    Chart.defaults.color = '#8899a6';
+    Chart.defaults.borderColor = '#38444d';
+    Chart.defaults.font.family = 'Manrope, Segoe UI, sans-serif';
+    
+    // Color palette
+    const colors = [
+      '#2a6df4', '#1ea97c', '#4f8af7', '#f59e0b', '#e24a4a',
+      '#1f5fd8', '#178764', '#3f73d3', '#d98512', '#bb3a3a',
+      '#4b8cff', '#2cbf8b', '#d64f4f', '#d9932e', '#385275'
+    ];
+    
+    // API Functions
+    async function fetchJSON(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    }
+    
+    async function loadCosts(period = currentPeriod) {
+      const startDate = getStartDate(period);
+      const url = `${API_BASE}/api/v2/costs?period=${period}&start_date=${startDate}`;
+      return fetchJSON(url);
+    }
+    
+    function getStartDate(period) {
+      const now = new Date();
+      switch (period) {
+        case 'daily':
+          return new Date(now.setDate(now.getDate() - 7)).toISOString().split('T')[0];
+        case 'weekly':
+          return new Date(now.setDate(now.getDate() - 28)).toISOString().split('T')[0];
+        case 'monthly':
+          return new Date(now.setMonth(now.getMonth() - 3)).toISOString().split('T')[0];
+        case 'all':
+          return '2024-01-01';
+        default:
+          return new Date(now.setDate(now.getDate() - 7)).toISOString().split('T')[0];
+      }
+    }
+    
+    // Initialize Charts
+    function initCharts() {
+      // Cost over Time (Line Chart)
+      const timeCtx = document.getElementById('costTimeChart').getContext('2d');
+      costTimeChart = new Chart(timeCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Cost ($)',
+            data: [],
+            borderColor: '#00ba7c',
+            backgroundColor: 'rgba(0, 186, 124, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#00ba7c'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#22303c',
+              borderColor: '#38444d',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => `$${ctx.raw.toFixed(4)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: '#38444d' },
+              ticks: { maxRotation: 45 }
+            },
+            y: {
+              grid: { color: '#38444d' },
+              ticks: {
+                callback: (value) => `$${value.toFixed(2)}`
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          }
+        }
+      });
+      
+      // Model Donut Chart
+      const modelCtx = document.getElementById('modelDonutChart').getContext('2d');
+      modelDonutChart = new Chart(modelCtx, {
+        type: 'doughnut',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            backgroundColor: colors,
+            borderColor: '#192734',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                padding: 15,
+                usePointStyle: true,
+                pointStyle: 'circle'
+              }
+            },
+            tooltip: {
+              backgroundColor: '#22303c',
+              borderColor: '#38444d',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => {
+                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct = ((ctx.raw / total) * 100).toFixed(1);
+                  return `$${ctx.raw.toFixed(4)} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '60%'
+        }
+      });
+      
+      // Agent Bar Chart
+      const agentCtx = document.getElementById('agentBarChart').getContext('2d');
+      agentBarChart = new Chart(agentCtx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Cost ($)',
+            data: [],
+            backgroundColor: '#1d9bf0',
+            borderRadius: 4,
+            barThickness: 30
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#22303c',
+              borderColor: '#38444d',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => `$${ctx.raw.toFixed(4)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: '#38444d' },
+              ticks: {
+                callback: (value) => `$${value.toFixed(2)}`
+              }
+            },
+            y: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+    
+    // Update Charts with Data
+    function updateCharts(data) {
+      const { summary, by_model, by_agent, by_date } = data;
+      
+      // Update Summary Cards
+      document.getElementById('totalCost').textContent = `$${(summary?.total_cost || 0).toFixed(4)}`;
+      document.getElementById('totalTokens').textContent = (summary?.total_tokens || 0).toLocaleString();
+      document.getElementById('totalRequests').textContent = (summary?.request_count || 0).toLocaleString();
+      
+      // Calculate trend (compare last period to previous period)
+      if (by_date && by_date.length >= 2) {
+        const lastPeriod = by_date[0]?.cost_total || 0;
+        const prevPeriod = by_date[1]?.cost_total || 0;
+        const trend = prevPeriod > 0 ? ((lastPeriod - prevPeriod) / prevPeriod * 100) : 0;
+        
+        const trendValue = document.getElementById('trendValue');
+        const trendIndicator = document.getElementById('trendIndicator');
+        
+        trendValue.textContent = `${trend >= 0 ? '+' : ''}${trend.toFixed(1)}%`;
+        
+        if (trend > 0) {
+          trendIndicator.className = 'trend-indicator up';
+          trendIndicator.textContent = '↑';
+        } else if (trend < 0) {
+          trendIndicator.className = 'trend-indicator down';
+          trendIndicator.textContent = '↓';
+        } else {
+          trendIndicator.className = 'trend-indicator';
+          trendIndicator.textContent = '—';
+        }
+      }
+      
+      // Update Time Series Chart
+      if (by_date && by_date.length > 0) {
+        const sortedDates = [...by_date].reverse();
+        costTimeChart.data.labels = sortedDates.map(d => d.period || d.period_start);
+        costTimeChart.data.datasets[0].data = sortedDates.map(d => d.cost_total || 0);
+        costTimeChart.update();
+      }
+      
+      // Update Model Donut Chart
+      if (by_model && by_model.length > 0) {
+        modelDonutChart.data.labels = by_model.map(m => m.model);
+        modelDonutChart.data.datasets[0].data = by_model.map(m => m.cost_total || 0);
+        modelDonutChart.update();
+        
+        // Update Model Table
+        const maxCost = Math.max(...by_model.map(m => m.cost_total), 1);
+        const tableHtml = by_model.slice(0, 8).map(m => `
+          <tr>
+            <td><span class="model-badge">${m.model}</span></td>
+            <td>
+              <div class="progress-bar">
+                <div class="progress-fill cost" style="width: ${(m.cost_total / maxCost * 100)}%"></div>
+              </div>
+            </td>
+            <td>$${m.cost_total.toFixed(4)}</td>
+            <td>${(m.total_tokens || 0).toLocaleString()}</td>
+          </tr>
+        `).join('');
+        document.getElementById('modelTableBody').innerHTML = tableHtml;
+      } else {
+        document.getElementById('modelTableBody').innerHTML = '<tr><td colspan="3" class="empty-state">No data</td></tr>';
+        modelDonutChart.data.labels = [];
+        modelDonutChart.data.datasets[0].data = [];
+        modelDonutChart.update();
+      }
+      
+      // Update Agent Bar Chart
+      if (by_agent && by_agent.length > 0) {
+        const sortedAgents = [...by_agent].sort((a, b) => (b.cost_total || 0) - (a.cost_total || 0)).slice(0, 8);
+        agentBarChart.data.labels = sortedAgents.map(a => a.name || 'Unknown');
+        agentBarChart.data.datasets[0].data = sortedAgents.map(a => a.cost_total || 0);
+        agentBarChart.update();
+      } else {
+        agentBarChart.data.labels = [];
+        agentBarChart.data.datasets[0].data = [];
+        agentBarChart.update();
+      }
+      
+      // Update last updated
+      document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    }
+    
+    // Set period and reload
+    function setPeriod(period) {
+      currentPeriod = period;
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+      });
+      loadDashboard();
+    }
+    
+    // Switch view (for future use)
+    function switchView(view) {
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.textContent.toLowerCase().includes(view));
+      });
+      // Could add more views here
+    }
+    
+    // Real-time cost updates
+    function initSocket() {
+      socket = io();
+      
+      // Listen for token usage events
+      socket.on('token:created', (data) => {
+        if (data && data.cost_total !== undefined) {
+          sessionStats.cost += data.cost_total;
+          sessionStats.tokens += data.total_tokens || 0;
+          sessionStats.requests += 1;
+          
+          // Update real-time display
+          document.getElementById('sessionCost').textContent = `$${sessionStats.cost.toFixed(4)}`;
+          document.getElementById('sessionTokens').textContent = sessionStats.tokens.toLocaleString();
+          document.getElementById('sessionRequests').textContent = sessionStats.requests.toLocaleString();
+          
+          const avgCost = sessionStats.requests > 0 
+            ? sessionStats.cost / sessionStats.requests 
+            : 0;
+          document.getElementById('avgCostPerRequest').textContent = `$${avgCost.toFixed(4)}`;
+        }
+      });
+      
+      // Also listen for generic events that might contain cost info
+      socket.on('event:created', (data) => {
+        // Could update activity counters here
+      });
+    }
+    
+    // OpenRouter validation
+    async function loadOpenRouterValidation(refresh = false) {
+      const usageEl = document.getElementById('openrouterUsage');
+      const localEl = document.getElementById('openrouterLocal');
+      const validEl = document.getElementById('openrouterValid');
+      const msgEl = document.getElementById('openrouterMessage');
+      try {
+        const url = `${API_BASE}/api/openrouter/validation${refresh ? '?refresh=1' : ''}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) {
+          usageEl.textContent = '--';
+          localEl.textContent = '--';
+          validEl.textContent = 'Error';
+          msgEl.textContent = data.error || 'Failed to load';
+          return;
+        }
+        if (data.message && !data.openrouterUsage) {
+          usageEl.textContent = '--';
+          localEl.textContent = '--';
+          validEl.textContent = '--';
+          msgEl.textContent = data.message;
+          return;
+        }
+        const orUsed = data.openrouterUsage != null ? `$${Number(data.openrouterUsage).toFixed(4)}` : '--';
+        const local = data.localCost != null ? `$${Number(data.localCost).toFixed(4)}` : '--';
+        usageEl.textContent = orUsed;
+        localEl.textContent = local;
+        validEl.textContent = data.valid ? 'PASSED' : 'FAILED';
+        validEl.style.color = data.valid ? 'var(--success)' : 'var(--error)';
+        msgEl.textContent = data.timestamp ? 'Last sync: ' + new Date(data.timestamp).toLocaleString() : '';
+      } catch (err) {
+        usageEl.textContent = '--';
+        localEl.textContent = '--';
+        validEl.textContent = '--';
+        msgEl.textContent = err.message || 'Failed to load OpenRouter validation';
+      }
+    }
+    
+    // Main load function
+    async function loadDashboard() {
+      try {
+        const data = await loadCosts(currentPeriod);
+        updateCharts(data || {});
+      } catch (error) {
+        console.error('Failed to load costs:', error);
+        updateCharts({ summary: {}, by_model: [], by_agent: [], by_date: [] });
+      }
+      loadOpenRouterValidation(false);
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      loadDashboard();
+      initSocket();
+      
+      // Auto-refresh every 30 seconds
+      setInterval(loadDashboard, 30000);
+    });
+  </script>
+</body>
+</html>

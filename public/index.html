@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw Tracker</title>
+  <link rel='preconnect' href='https://fonts.googleapis.com'>
+  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+  <link href='https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap' rel='stylesheet'>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0b1220;
+      --bg2:     #111b2e;
+      --bg3:     #16243b;
+      --fg:      #eaf1ff;
+      --fg2:     #a4b3cb;
+      --accent:  #2a6df4;
+      --green:   #1ea97c;
+      --yellow:  #f59e0b;
+      --red:     #e24a4a;
+      --border:  #2a3b59;
+      --radius:  10px;
+    }
+
+    body {
+      font-family: 'Manrope', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 20px 24px; }
+
+    /* ── Header ── */
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-bottom: 18px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+    }
+    header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    .live-dot {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px; font-size: 13px; color: var(--fg2);
+    }
+    .live-dot::before {
+      content: ''; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* ── OR Banner ── */
+    #or-banner {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 20px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      margin-bottom: 20px; gap: 16px;
+    }
+    .or-badge-wrap { display: flex; align-items: center; gap: 10px; }
+    #or-badge {
+      font-size: 11px; font-weight: 600; padding: 3px 9px;
+      border-radius: 12px; text-transform: uppercase; letter-spacing: .5px;
+      white-space: nowrap;
+    }
+    #or-badge.ok   { background: #0a3a28; color: var(--green); border: 1px solid #0d5c3e; }
+    #or-badge.warn { background: #3a2d0a; color: var(--yellow); border: 1px solid #6a5010; }
+    #or-badge.off  { background: var(--bg3); color: var(--fg2); border: 1px solid var(--border); }
+    .or-metrics {
+      display: flex; gap: 0; flex-wrap: wrap;
+    }
+    .or-metric {
+      display: flex; flex-direction: column; padding: 0 18px;
+      border-right: 1px solid var(--border);
+    }
+    .or-metric:first-child { padding-left: 0; }
+    .or-metric:last-child { border-right: none; }
+    .or-metric-label { font-size: 10px; color: var(--fg2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+    .or-metric-val { font-size: 18px; font-weight: 700; }
+    .or-metric-val.red { color: var(--red); }
+    .or-metric-val.yellow { color: var(--yellow); }
+    .or-metric-val.green { color: var(--green); }
+    .or-metric-val.dim { color: var(--fg2); }
+    .or-sync { font-size: 11px; color: var(--fg2); white-space: nowrap; }
+    .btn-sm {
+      background: var(--bg3); border: 1px solid var(--border); color: var(--fg2);
+      padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    .btn-sm:hover { color: var(--fg); border-color: var(--accent); }
+    .or-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+    /* ── Stats ── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px;
+    }
+    .stat-label { font-size: 11px; color: var(--fg2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .stat-val   { font-size: 26px; font-weight: 700; }
+    .stat-val.green { color: var(--green); }
+
+    /* ── Section ── */
+    .section {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px;
+    }
+    .section-hdr {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+    }
+    .section-hdr h2 { font-size: 15px; font-weight: 600; }
+    .section-hdr .hint { font-size: 12px; color: var(--fg2); }
+
+    /* ── Model Stats Table ── */
+    .model-table { width: 100%; border-collapse: collapse; }
+    .model-table th {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--fg2); padding: 6px 12px; border-bottom: 1px solid var(--border);
+      text-align: right; white-space: nowrap;
+    }
+    .model-table th:first-child { text-align: left; }
+    .model-table td {
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: middle; text-align: right;
+    }
+    .model-table td:first-child { text-align: left; }
+    .model-table tr:last-child td { border-bottom: none; }
+    .model-table tr:hover td { background: var(--bg3); }
+
+    /* bar inside cost cell */
+    .cost-cell { position: relative; }
+    .cost-bar {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      background: rgba(0,186,124,.12); border-radius: 0;
+      pointer-events: none;
+    }
+    .cost-val { position: relative; color: var(--green); font-weight: 600; }
+
+    /* ── Call Log Table ── */
+    .tbl-wrap { overflow-x: auto; }
+    table.log { width: 100%; border-collapse: collapse; }
+    table.log th {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--fg2); padding: 6px 10px; border-bottom: 1px solid var(--border);
+      text-align: left; white-space: nowrap;
+    }
+    table.log th.r, table.log td.r { text-align: right; }
+    table.log td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle;
+      white-space: nowrap;
+    }
+    table.log tr:last-child td { border-bottom: none; }
+    table.log tr:hover td { background: var(--bg3); }
+
+    .mono { font-family: 'SF Mono', Consolas, monospace; font-size: 12px; }
+    .muted { color: var(--fg2); }
+    .tag {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 11px; font-weight: 500; white-space: nowrap;
+    }
+    .tag.model { background: #0d2740; color: #5bc0ff; border: 1px solid #103852; }
+    .tag.agent { background: #182b48; color: #98c1ff; border: 1px solid #24467a; }
+    .tag.tool  { background: #14331a; color: #55e075; border: 1px solid #1a5522; }
+    .tag.task  { background: #2d2a17; color: #d4bc7e; border: 1px solid #5b4f28; }
+
+    .dt-date { color: var(--fg2); font-size: 11px; display: block; }
+    .dt-time { font-size: 13px; font-family: 'SF Mono', Consolas, monospace; }
+
+    .green { color: var(--green); }
+    .red   { color: var(--red); }
+    .yellow { color: var(--yellow); }
+    .empty { text-align: center; padding: 32px; color: var(--fg2); font-size: 13px; }
+    .footer { text-align: center; color: var(--fg2); font-size: 12px; margin-top: 12px; }
+
+    /* tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab {
+      padding: 5px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+      border: 1px solid var(--border); background: transparent; color: var(--fg2);
+    }
+    .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>OpenClaw Tracker</h1>
+    <span class="live-dot">Live</span>
+  </header>
+
+  <!-- OpenRouter banner -->
+  <div id="or-banner">
+    <div class="or-badge-wrap">
+      <span id="or-badge" class="off">OpenRouter</span>
+    </div>
+    <div class="or-metrics">
+      <div class="or-metric">
+        <span class="or-metric-label">Total Used (OR)</span>
+        <span class="or-metric-val red" id="or-used">$—</span>
+      </div>
+      <div class="or-metric">
+        <span class="or-metric-label">Balance Remaining</span>
+        <span class="or-metric-val yellow" id="or-remaining">$—</span>
+      </div>
+      <div class="or-metric">
+        <span class="or-metric-label">Credits Purchased</span>
+        <span class="or-metric-val dim" id="or-credits">$—</span>
+      </div>
+      <div class="or-metric">
+        <span class="or-metric-label">App Tracked</span>
+        <span class="or-metric-val green" id="or-local">$—</span>
+      </div>
+      <div class="or-metric">
+        <span class="or-metric-label">Pre-app Usage</span>
+        <span class="or-metric-val dim" id="or-baseline">$—</span>
+      </div>
+      <div class="or-metric">
+        <span class="or-metric-label">Tracking Drift</span>
+        <span class="or-metric-val" id="or-drift">—</span>
+      </div>
+    </div>
+    <div class="or-right">
+      <button class="btn-sm" onclick="refreshOR()">Sync Now</button>
+      <span class="or-sync" id="or-sync-time">Never synced</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Sessions Today</div>
+      <div class="stat-val" id="s-sessions">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Calls Today</div>
+      <div class="stat-val" id="s-calls">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Tokens Today</div>
+      <div class="stat-val" id="s-tokens">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cost Today (App)</div>
+      <div class="stat-val green" id="s-cost">$—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Used (OR)</div>
+      <div class="stat-val red" id="s-or-total">$—</div>
+    </div>
+  </div>
+
+  <!-- By Model -->
+  <div class="section">
+    <div class="section-hdr">
+      <h2>Usage by Model</h2>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="hint" id="model-period-label">All time</span>
+        <button class="btn-sm" onclick="cycleModelPeriod()">Change period</button>
+        <button class="btn-sm" onclick="loadAll()">Refresh</button>
+      </div>
+    </div>
+    <div id="model-stats"><div class="empty">Loading…</div></div>
+  </div>
+
+  <!-- Call Log (LLM + Tool tabs) -->
+  <div class="section">
+    <div class="section-hdr">
+      <h2>Activity Log</h2>
+      <span class="hint" id="log-count"></span>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-llm" onclick="switchTab('llm')">LLM Calls</button>
+      <button class="tab" id="tab-tool" onclick="switchTab('tool')">Tool Calls</button>
+    </div>
+
+    <!-- LLM calls -->
+    <div id="pane-llm">
+      <div class="tbl-wrap">
+        <table class="log">
+          <thead>
+            <tr>
+              <th>Date / Time</th>
+              <th>Agent</th>
+              <th>Task</th>
+              <th>Model</th>
+              <th class="r">Input</th>
+              <th class="r">Output</th>
+              <th class="r">Cache</th>
+              <th class="r">Total</th>
+              <th class="r">Cost</th>
+            </tr>
+          </thead>
+          <tbody id="llm-tbody">
+            <tr><td colspan="9" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tool calls -->
+    <div id="pane-tool" style="display:none">
+      <div class="tbl-wrap">
+        <table class="log">
+          <thead>
+            <tr>
+              <th>Date / Time</th>
+              <th>Agent</th>
+              <th>Task</th>
+              <th>Tool</th>
+            </tr>
+          </thead>
+          <tbody id="tool-tbody">
+            <tr><td colspan="4" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Updated: <span id="updated-at">—</span></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  function fmtCost(n) {
+    const v = parseFloat(n);
+    if (isNaN(v) || v === 0) return '$0';
+    if (v < 0.0001) return '<$0.0001';
+    return '$' + v.toFixed(4);
+  }
+
+  function fmtTokens(n) {
+    const v = parseInt(n, 10);
+    if (isNaN(v) || v === 0) return '—';
+    if (v >= 1000000) return (v / 1000000).toFixed(2) + 'M';
+    if (v >= 1000) return (v / 1000).toFixed(1) + 'k';
+    return String(v);
+  }
+
+  function fmtNum(n) {
+    const v = parseInt(n, 10);
+    return isNaN(v) ? '—' : v.toLocaleString();
+  }
+
+  function fmtDT(ts) {
+    if (!ts) return { date: '—', time: '—' };
+    const d = new Date(ts);
+    return {
+      date: d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+      time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    };
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function dtCell(ts) {
+    const { date, time } = fmtDT(ts);
+    return `<span class="dt-date">${date}</span><span class="dt-time">${time}</span>`;
+  }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+
+  let activeTab = 'llm';
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById('pane-llm').style.display  = tab === 'llm'  ? '' : 'none';
+    document.getElementById('pane-tool').style.display = tab === 'tool' ? '' : 'none';
+    document.getElementById('tab-llm').className  = 'tab' + (tab === 'llm'  ? ' active' : '');
+    document.getElementById('tab-tool').className = 'tab' + (tab === 'tool' ? ' active' : '');
+    document.getElementById('log-count').textContent =
+      tab === 'llm' ? llmCount + ' shown' : toolCount + ' shown';
+  }
+
+  let llmCount = 0, toolCount = 0;
+
+  // ── Model period cycling ──────────────────────────────────────────────────
+
+  const MODEL_PERIODS = ['all', 'today', 'week', 'month'];
+  const MODEL_PERIOD_LABELS = { all: 'All time', today: 'Today', week: 'Last 7 days', month: 'Last 30 days' };
+  let modelPeriodIdx = 0;
+
+  function cycleModelPeriod() {
+    modelPeriodIdx = (modelPeriodIdx + 1) % MODEL_PERIODS.length;
+    document.getElementById('model-period-label').textContent =
+      MODEL_PERIOD_LABELS[MODEL_PERIODS[modelPeriodIdx]];
+    loadModelStats();
+  }
+
+  // ── OpenRouter ────────────────────────────────────────────────────────────
+
+  async function loadOR() {
+    try {
+      const d = await fetch('/api/openrouter/validation').then(r => r.json());
+      const badge = document.getElementById('or-badge');
+
+      if (!d.ok && !d.valid && d.localCost == null) {
+        badge.className = 'off'; badge.textContent = 'OpenRouter';
+        document.getElementById('or-sync-time').textContent = d.message || 'Never synced';
+        return;
+      }
+
+      const diffPct = parseFloat(d.differencePercent ?? 0);
+      const valid   = d.valid !== false && Math.abs(diffPct) <= 5;
+      badge.className = valid ? 'ok' : 'warn';
+      badge.textContent = valid ? 'Synced' : 'Drift Detected';
+
+      const used      = parseFloat(d.openrouterUsage   ?? 0);
+      const credits   = parseFloat(d.openrouterCredits ?? 0);
+      const remaining = parseFloat(d.openrouterRemaining ?? (credits - used));
+      const baseline  = parseFloat(d.baseline          ?? 0);
+      const local     = parseFloat(d.localCost         ?? 0);
+
+      document.getElementById('or-used').textContent      = fmtCost(used);
+      document.getElementById('or-remaining').textContent = fmtCost(remaining);
+      document.getElementById('or-credits').textContent   = credits > 0 ? fmtCost(credits) : '—';
+      document.getElementById('or-local').textContent     = fmtCost(local);
+      document.getElementById('or-baseline').textContent  = baseline > 0 ? fmtCost(baseline) : '—';
+
+      const driftEl = document.getElementById('or-drift');
+      driftEl.textContent = diffPct + '%';
+      driftEl.className   = 'or-metric-val ' + (Math.abs(diffPct) <= 1 ? 'green' : Math.abs(diffPct) <= 5 ? 'yellow' : 'red');
+
+      // also update the stat card
+      document.getElementById('s-or-total').textContent = fmtCost(used);
+
+      const ts = d.timestamp ? new Date(d.timestamp).toLocaleString() : '—';
+      document.getElementById('or-sync-time').textContent = 'Last sync: ' + ts;
+    } catch {
+      document.getElementById('or-sync-time').textContent = 'Could not load OR status';
+    }
+  }
+
+  async function refreshOR() {
+    document.getElementById('or-sync-time').textContent = 'Syncing…';
+    try {
+      await fetch('/api/openrouter/validation?refresh=1');
+      await loadOR();
+    } catch (err) {
+      document.getElementById('or-sync-time').textContent = 'Sync failed: ' + err.message;
+    }
+  }
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+
+  async function loadStats() {
+    try {
+      const todayISO = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC, matches daily_costs.date
+      const [dash, todayCosts] = await Promise.all([
+        fetch('/api/dashboard').then(r => r.json()),
+        fetch(`/api/v2/costs?start_date=${todayISO}`).then(r => r.json()),
+      ]);
+      document.getElementById('s-sessions').textContent = dash.activeSessions ?? 0;
+      document.getElementById('s-calls').textContent = todayCosts.summary?.request_count ?? 0;
+      document.getElementById('s-tokens').textContent =
+        (todayCosts.summary?.total_tokens ?? 0).toLocaleString();
+      document.getElementById('s-cost').textContent = fmtCost(todayCosts.summary?.total_cost ?? 0);
+    } catch (err) {
+      console.error('Stats error:', err);
+    }
+  }
+
+  // ── Model Stats ───────────────────────────────────────────────────────────
+
+  async function loadModelStats() {
+    const period = MODEL_PERIODS[modelPeriodIdx];
+    const qs = period === 'all' ? '' :
+      period === 'today' ? `?start_date=${new Date().toISOString().slice(0,10)}&end_date=${new Date().toISOString().slice(0,10)}` :
+      period === 'week'  ? '?start_date=' + new Date(Date.now() - 7*86400000).toISOString().slice(0,10) :
+                           '?start_date=' + new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+    try {
+      const d = await fetch('/api/v2/costs' + qs).then(r => r.json());
+      const models = d.by_model || [];
+
+      if (models.length === 0) {
+        document.getElementById('model-stats').innerHTML = '<div class="empty">No data for this period</div>';
+        return;
+      }
+
+      const maxCost = Math.max(...models.map(m => parseFloat(m.cost_total) || 0), 0.0001);
+
+      document.getElementById('model-stats').innerHTML = `
+        <table class="model-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th class="r">Calls</th>
+              <th class="r">Input Tokens</th>
+              <th class="r">Output Tokens</th>
+              <th class="r">Total Tokens</th>
+              <th class="r" style="min-width:110px">Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${models.map(m => {
+              const pct = Math.max(2, ((parseFloat(m.cost_total)||0) / maxCost * 100));
+              return `<tr>
+                <td><span class="tag model">${esc(m.model.split('/').pop())}</span>
+                    <span class="muted" style="font-size:11px;margin-left:6px">${esc(m.provider || '')}</span></td>
+                <td class="r mono">${fmtNum(m.request_count)}</td>
+                <td class="r mono">${fmtTokens(m.input_tokens)}</td>
+                <td class="r mono">${fmtTokens(m.output_tokens)}</td>
+                <td class="r mono">${fmtTokens(m.total_tokens)}</td>
+                <td class="r cost-cell">
+                  <div class="cost-bar" style="width:${pct}%"></div>
+                  <span class="cost-val">${fmtCost(m.cost_total)}</span>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    } catch (err) {
+      document.getElementById('model-stats').innerHTML =
+        `<div class="empty" style="color:var(--red)">Error: ${esc(err.message)}</div>`;
+    }
+  }
+
+  // ── LLM Call Log ──────────────────────────────────────────────────────────
+
+  async function loadTokens() {
+    try {
+      const d = await fetch('/api/v2/tokens?limit=100').then(r => r.json());
+      const rows = d.data || [];
+      llmCount = rows.length;
+      if (activeTab === 'llm') document.getElementById('log-count').textContent = llmCount + ' shown';
+
+      if (rows.length === 0) {
+        document.getElementById('llm-tbody').innerHTML =
+          '<tr><td colspan="9" class="empty">No LLM calls captured yet</td></tr>';
+        return;
+      }
+
+      document.getElementById('llm-tbody').innerHTML = rows.map(r => `
+        <tr>
+          <td>${dtCell(r.timestamp)}</td>
+          <td>${r.agent_name ? `<span class="tag agent">${esc(r.agent_name)}</span>` : `<span class="muted">${esc(r.agent_id)||'—'}</span>`}</td>
+          <td>${r.task_label ? `<span class="tag task">${esc(r.task_label)}</span>` : '<span class="muted">—</span>'}</td>
+          <td><span class="tag model">${esc((r.model||'').split('/').pop())}</span></td>
+          <td class="r mono">${fmtTokens(r.input_tokens)}</td>
+          <td class="r mono">${fmtTokens(r.output_tokens)}</td>
+          <td class="r mono">${fmtTokens(r.cache_read_tokens)}</td>
+          <td class="r mono">${fmtTokens(r.total_tokens)}</td>
+          <td class="r mono green">${fmtCost(r.cost_total)}</td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      document.getElementById('llm-tbody').innerHTML =
+        `<tr><td colspan="9" class="empty" style="color:var(--red)">Error: ${esc(err.message)}</td></tr>`;
+    }
+  }
+
+  // ── Tool Call Log ─────────────────────────────────────────────────────────
+
+  async function loadActivity() {
+    try {
+      const d = await fetch('/api/dashboard').then(r => r.json());
+      const rows = d.recentActivity || [];
+      toolCount = rows.length;
+      if (activeTab === 'tool') document.getElementById('log-count').textContent = toolCount + ' shown';
+
+      if (rows.length === 0) {
+        document.getElementById('tool-tbody').innerHTML =
+          '<tr><td colspan="4" class="empty">No tool activity yet</td></tr>';
+        return;
+      }
+
+      document.getElementById('tool-tbody').innerHTML = rows.map(e => `
+        <tr>
+          <td>${dtCell(e.timestamp)}</td>
+          <td>${e.agent_name ? `<span class="tag agent">${esc(e.agent_name)}</span>` : '<span class="muted">—</span>'}</td>
+          <td>${e.task_label ? `<span class="tag task">${esc(e.task_label)}</span>` : '<span class="muted">—</span>'}</td>
+          <td><span class="tag tool">${esc(e.event_action||'—')}</span></td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      document.getElementById('tool-tbody').innerHTML =
+        `<tr><td colspan="4" class="empty" style="color:var(--red)">Error: ${esc(err.message)}</td></tr>`;
+    }
+  }
+
+  // ── Load All ──────────────────────────────────────────────────────────────
+
+  async function loadAll() {
+    await Promise.all([loadStats(), loadModelStats(), loadTokens(), loadActivity()]);
+    document.getElementById('updated-at').textContent = new Date().toLocaleTimeString();
+  }
+
+  // ── Socket.IO ─────────────────────────────────────────────────────────────
+
+  try {
+    const socket = io();
+    socket.on('token:created',   () => { loadStats(); loadModelStats(); loadTokens(); });
+    socket.on('activity:created', () => { loadActivity(); });
+  } catch (e) {}
+
+  // Initial load + polling every 15s
+  loadAll();
+  loadOR();
+  setInterval(loadAll, 15000);
+  setInterval(loadOR, 300000);
+</script>
+</body>
+</html>

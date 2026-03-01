@@ -1,0 +1,44 @@
+{
+  "name": "ra-tracker",
+  "version": "1.0.0",
+  "description": "OpenClaw real-time activity tracker and analytics dashboard",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js",
+    "test": "node --test tests/**/*.test.js",
+    "test:watch": "node --test --watch tests/**/*.test.js",
+    "openrouter:sync": "node src/openrouter/sync.js --once",
+    "openrouter:sync:start": "node src/openrouter/sync.js --start",
+    "reset": "node scripts/reset-capture.js"
+  },
+  "keywords": [
+    "openclaw",
+    "tracker",
+    "analytics",
+    "agent",
+    "activity"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "chart.js": "^4.5.1",
+    "chrono-node": "^2.9.0",
+    "compromise": "^14.14.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cache": "^5.1.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
