@@ -42,9 +42,8 @@ const menuItems = [
   { text: 'Models', icon: <ModelsIcon />, path: '/models' },
 ];
 
-function DashboardLayout() {
+function DashboardLayout({ darkMode, onThemeToggle }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -59,10 +58,6 @@ function DashboardLayout() {
     if (isMobile) {
       setMobileOpen(false);
     }
-  };
-
-  const handleThemeToggle = () => {
-    setDarkMode(!darkMode);
   };
 
   const drawerContent = (
@@ -127,7 +122,7 @@ function DashboardLayout() {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {menuItems.find((item) => item.path === location.pathname)?.text || 'Dashboard'}
           </Typography>
-          <IconButton onClick={handleThemeToggle} color="inherit">
+          <IconButton onClick={onThemeToggle} color="inherit">
             {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
           <Avatar sx={{ ml: 1, bgcolor: 'primary.main' }}>R</Avatar>

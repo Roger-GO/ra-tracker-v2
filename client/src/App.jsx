@@ -83,12 +83,20 @@ const darkTheme = createTheme({
 });
 
 function App() {
+  const [darkMode, setDarkMode] = React.useState(false);
+
+  const handleThemeToggle = () => {
+    setDarkMode(!darkMode);
+  };
+
+  const currentTheme = darkMode ? darkTheme : theme;
+
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={currentTheme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<DashboardLayout />}>
+          <Route path="/" element={<DashboardLayout darkMode={darkMode} onThemeToggle={handleThemeToggle} />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="costs" element={<Costs />} />
