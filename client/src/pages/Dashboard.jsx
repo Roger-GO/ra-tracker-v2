@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Grid,
-  Paper,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -14,33 +15,16 @@ import {
   Timeline,
 } from '@mui/icons-material';
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
 } from 'recharts';
-
-const activityData = [
-  { name: 'Mon', value: 400 },
-  { name: 'Tue', value: 300 },
-  { name: 'Wed', value: 550 },
-  { name: 'Thu', value: 480 },
-  { name: 'Fri', value: 600 },
-  { name: 'Sat', value: 350 },
-  { name: 'Sun', value: 420 },
-];
-
-const costData = [
-  { name: 'Week 1', cost: 120 },
-  { name: 'Week 2', cost: 180 },
-  { name: 'Week 3', cost: 150 },
-  { name: 'Week 4', cost: 220 },
-];
 
 const StatCard = ({ title, value, icon, color }) => (
   <Card sx={{ height: '100%' }}>
@@ -70,6 +54,91 @@ const StatCard = ({ title, value, icon, color }) => (
 );
 
 function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    totalActivities: 0,
+    totalCosts: 0,
+    activeAgents: 0,
+    weeklyGrowth: 0,
+  });
+  const [activityData, setActivityData] = useState([]);
+  const [costData, setCostData] = useState([]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch costs
+      const costsRes = await fetch('/api/v2/costs?days=30');
+      const costsData = await costsRes.json();
+      
+      // Fetch agents
+      const agentsRes = await fetch('/api/v2/agents');
+      const agentsData = await agentsRes.json();
+      
+      // Fetch activity
+      const activityRes = await fetch('/api/v2/activity');
+      const activityData = await activityRes.json();
+
+      // Calculate stats
+      const totalCosts = costsData?.summary?.total_cost || 0;
+      const totalActivities = activityData?.length || 0;
+      const activeAgents = agentsData?.length || 0;
+      
+      // Transform activity for chart
+      const activityByDay = {};
+      (activityData || []).forEach(item => {
+        const date = new Date(item.timestamp).toLocaleDateString('en-US', { weekday: 'short' });
+        activityByDay[date] = (activityByDay[date] || 0) + 1;
+      });
+      
+      const activityChartData = Object.entries(activityByDay)
+        .map(([name, value]) => ({ name, value }))
+        .slice(0, 7);
+
+      // Transform costs for chart (last 4 weeks)
+      const costsByWeek = {};
+      (costsData || []).slice(-28).forEach(item => {
+        const week = 'Week ' + Math.ceil((new Date(item.date) - new Date(costsData[0]?.date || new Date())) / 7);
+        costsByWeek[week] = (costsByWeek[week] || 0) + (item.total_cost || 0);
+      });
+      
+      const costChartData = Object.entries(costsByWeek)
+        .map(([name, cost]) => ({ name, cost }))
+        .slice(-4);
+
+      setStats({
+        totalActivities,
+        totalCosts,
+        activeAgents,
+        weeklyGrowth: 0, // Could calculate based on previous period
+      });
+      setActivityData(activityChartData.length > 0 ? activityChartData : [{ name: 'No data', value: 0 }]);
+      setCostData(costChartData.length > 0 ? costChartData : [{ name: 'No data', cost: 0 }]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Alert severity="error">Error loading dashboard: {error}</Alert>;
+  }
+
   return (
     <Box>
       <Typography variant="h4" fontWeight={600} gutterBottom>
@@ -84,7 +153,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Activities"
-            value="2,847"
+            value={stats.totalActivities.toLocaleString()}
             icon={<Timeline />}
             color="#9c27b0"
           />
@@ -92,7 +161,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Costs"
-            value="$1,284"
+            value={`$${stats.totalCosts.toFixed(2)}`}
             icon={<AttachMoney />}
             color="#e91e63"
           />
@@ -100,7 +169,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Agents"
-            value="12"
+            value={stats.activeAgents}
             icon={<SmartToy />}
             color="#2196f3"
           />
@@ -108,7 +177,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="This Week"
-            value="+24%"
+            value={`${stats.weeklyGrowth > 0 ? '+' : ''}${stats.weeklyGrowth}%`}
             icon={<TrendingUp />}
             color="#4caf50"
           />
@@ -121,7 +190,7 @@ function Dashboard() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                Weekly Activity
+                Daily Activity
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={activityData}>
@@ -145,22 +214,16 @@ function Dashboard() {
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                Cost Trends
+                Cost by Week
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={costData}>
+                <BarChart data={costData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="cost"
-                    stroke="#e91e63"
-                    strokeWidth={2}
-                    dot={{ fill: '#e91e63' }}
-                  />
-                </LineChart>
+                  <Bar dataKey="cost" fill="#e91e63" />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
