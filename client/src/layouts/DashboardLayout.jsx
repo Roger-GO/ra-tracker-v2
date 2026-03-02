@@ -42,9 +42,8 @@ const menuItems = [
   { text: 'Models', icon: <ModelsIcon />, path: '/models' },
 ];
 
-function DashboardLayout() {
+function DashboardLayout({ darkMode, setDarkMode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
