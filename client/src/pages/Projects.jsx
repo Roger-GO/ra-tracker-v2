@@ -7,65 +7,36 @@ import {
   Grid,
   CircularProgress,
   Alert,
-  Chip
 } from '@mui/material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-
-const COLORS = ['#9c27b0', '#2196f3', '#4caf50', '#ff9800', '#f44336', '#00bcd4', '#795548', '#607d8b'];
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function Projects() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [projectStats, setProjectStats] = useState({ byCost: [], byTokens: [] });
 
   useEffect(() => {
-    fetchProjectsData();
+    fetchData();
   }, []);
 
-  const fetchProjectsData = async () => {
+  const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v2/projects');
-      const json = await response.json();
-      const data = json.data || json.projects || json || [];
-      
-      const projectsWithStatus = (Array.isArray(data) ? data : []).map((project, idx) => ({
-        id: project.id || idx,
-        name: project.name || 'Unknown Project',
-        status: project.status || 'active',
-        totalCost: parseFloat(project.total_cost || 0),
-        totalTokens: parseInt(project.total_tokens || 0),
-        taskCount: project.task_count || 0,
-        sprintCount: project.sprint_count || 0
-      }));
-
-      setProjects(projectsWithStatus);
-      setProjectStats({
-        byCost: projectsWithStatus.map(p => ({
-          name: (p.name || 'Unknown').length > 15 ? p.name.substring(0, 15) + '...' : p.name,
-          cost: p.totalCost
-        })),
-        byTokens: projectsWithStatus.map(p => ({
-          name: (p.name || 'Unknown').length > 15 ? p.name.substring(0, 15) + '...' : p.name,
-          tokens: p.totalTokens
-        }))
-      });
+      const res = await fetch('/api/v2/costs?days=30');
+      const json = await res.json();
+      // Group by agent (as proxy for projects since we don't have explicit projects)
+      const byAgent = json.by_agent || [];
+      setProjects(byAgent.map(a => ({
+        name: a.name || 'Unknown',
+        cost: parseFloat(a.cost_total || 0),
+        tokens: a.total_tokens || 0,
+        calls: a.request_count || 0
+      })));
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'completed': return 'info';
-      case 'planning': return 'default';
-      case 'in_progress': return 'warning';
-      default: return 'default';
     }
   };
 
@@ -86,85 +57,44 @@ function Projects() {
       <Typography variant="h4" fontWeight={600} gutterBottom>
         Projects
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Manage and track your ongoing projects
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        Cost breakdown by agent (proxy for projects)
       </Typography>
-      
+
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        {projects.map((project) => (
-          <Grid item xs={12} md={6} key={project.id}>
-            <Card>
+        {projects.slice(0, 4).map((project, idx) => (
+          <Grid item xs={12} sm={6} md={3} key={idx}>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #673ab7 0%, #9575cd 100%)',
+              color: 'white',
+              height: 120
+            }}>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Typography variant="h6">{project.name}</Typography>
-                  <Chip 
-                    label={(project.status || 'active').replace('_', ' ')} 
-                    color={getStatusColor(project.status)} 
-                    size="small" 
-                  />
-                </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={4}>
-                    <Typography variant="body2" color="text.secondary">Total Cost</Typography>
-                    <Typography variant="h6" color="primary">${project.totalCost.toFixed(2)}</Typography>
-                  </Grid>
-                  <Grid item xs={4}>
-                    <Typography variant="body2" color="text.secondary">Tokens</Typography>
-                    <Typography variant="h6">{project.totalTokens.toLocaleString()}</Typography>
-                  </Grid>
-                  <Grid item xs={4}>
-                    <Typography variant="body2" color="text.secondary">Tasks</Typography>
-                    <Typography variant="h6">{project.taskCount}</Typography>
-                  </Grid>
-                </Grid>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>{project.name}</Typography>
+                <Typography variant="h4" fontWeight={700}>${project.cost.toFixed(2)}</Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                  {project.calls} calls • {(project.tokens / 1000).toFixed(1)}K tokens
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Costs by Project</Typography>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={projectStats.byCost}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                  <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-                  <Bar dataKey="cost" fill="#9c27b0">
-                    {projectStats.byCost.map((entry, index) => (
-                      <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Tokens by Project</Typography>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={projectStats.byTokens}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value) => value.toLocaleString()} />
-                  <Bar dataKey="tokens" fill="#2196f3">
-                    {projectStats.byTokens.map((entry, index) => (
-                      <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Card sx={{ height: 500 }}>
+        <CardContent>
+          <Typography variant="h5" fontWeight={600} gutterBottom>All Projects/Agents</Typography>
+          <ResponsiveContainer width="100%" height={420}>
+            <BarChart data={projects.slice(0, 10)}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
+              <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+              <Bar dataKey="cost" fill="#673ab7" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </Box>
   );
 }

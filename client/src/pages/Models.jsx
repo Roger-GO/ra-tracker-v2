@@ -5,46 +5,40 @@ import {
   CardContent,
   Typography,
   Grid,
-  Chip,
   CircularProgress,
   Alert,
-  Tabs,
-  Tab
 } from '@mui/material';
-import { Speed, Memory, TrendingUp } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const COLORS = ['#9c27b0', '#2196f3', '#4caf50', '#ff9800', '#f44336', '#00bcd4', '#795548', '#607d8b'];
+const COLORS = ['#9c27b0', '#2196f3', '#4caf50', '#ff9800', '#f44336', '#00bcd4'];
 
 function Models() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [models, setModels] = useState([]);
-  const [tab, setTab] = useState(0);
 
   useEffect(() => {
-    fetchModelsData();
+    fetchData();
   }, []);
 
-  const fetchModelsData = async () => {
+  const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v2/models/usage');
-      const json = await response.json();
-      const data = json.data || json.models || json || [];
+      const res = await fetch('/api/v2/costs?days=30');
+      const json = await res.json();
+      const byModel = json.by_model || [];
       
-      const modelsWithStats = (Array.isArray(data) ? data : []).map((model, idx) => ({
-        id: model.id || idx,
-        name: model.model || model.name || 'Unknown',
-        provider: model.provider || 'Unknown',
-        calls: parseInt(model.calls || model.api_calls || 0),
-        tokens: parseInt(model.tokens || 0),
-        cost: parseFloat(model.cost || model.total_cost || 0),
-        status: 'active'
-      }));
-
-      setModels(modelsWithStats);
+      setModels(byModel.map(m => ({
+        name: m.model || 'Unknown',
+        shortName: (m.model || '').split('/').pop() || 'Unknown',
+        provider: m.provider || 'openrouter',
+        cost: parseFloat(m.cost_total || 0),
+        tokens: m.total_tokens || 0,
+        inputTokens: m.input_tokens || 0,
+        outputTokens: m.output_tokens || 0,
+        calls: m.request_count || 0
+      })));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,158 +58,130 @@ function Models() {
     return <Alert severity="error">{error}</Alert>;
   }
 
-  const totalCalls = models.reduce((sum, m) => sum + m.calls, 0);
-  const totalTokens = models.reduce((sum, m) => sum + m.tokens, 0);
   const totalCost = models.reduce((sum, m) => sum + m.cost, 0);
-
-  const tokensByModel = models.map(m => ({
-    name: (m.name || 'Unknown').split('/').pop() || 'Unknown',
-    tokens: m.tokens
-  })).sort((a, b) => b.tokens - a.tokens);
-
-  const costByModel = models.map(m => ({
-    name: (m.name || 'Unknown').split('/').pop() || 'Unknown',
-    cost: m.cost
-  })).sort((a, b) => b.cost - a.cost);
+  const totalTokens = models.reduce((sum, m) => sum + m.tokens, 0);
+  const totalCalls = models.reduce((sum, m) => sum + m.calls, 0);
 
   return (
     <Box>
       <Typography variant="h4" fontWeight={600} gutterBottom>
-        Models Usage
+        Models
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        AI models and their usage statistics
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        OpenRouter model usage breakdown
       </Typography>
 
+      {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'primary.main', color: '#fff' }}>
-                <Speed />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Total Calls</Typography>
-                <Typography variant="h5" fontWeight={600}>{totalCalls.toLocaleString()}</Typography>
-              </Box>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+            color: 'white',
+            height: 100
+          }}>
+            <CardContent>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Total Spend</Typography>
+              <Typography variant="h4" fontWeight={700}>${totalCost.toFixed(2)}</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'secondary.main', color: '#fff' }}>
-                <Memory />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Total Tokens</Typography>
-                <Typography variant="h5" fontWeight={600}>{totalTokens.toLocaleString()}</Typography>
-              </Box>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)',
+            color: 'white',
+            height: 100
+          }}>
+            <CardContent>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Total Tokens</Typography>
+              <Typography variant="h4" fontWeight={700}>{(totalTokens / 1000000).toFixed(2)}M</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'success.main', color: '#fff' }}>
-                <TrendingUp />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Total Cost</Typography>
-                <Typography variant="h5" fontWeight={600}>${totalCost.toFixed(2)}</Typography>
-              </Box>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)',
+            color: 'white',
+            height: 100
+          }}>
+            <CardContent>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Total Calls</Typography>
+              <Typography variant="h4" fontWeight={700}>{totalCalls.toLocaleString()}</Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
-        <Tab label="Model Cards" />
-        <Tab label="Token Usage" />
-        <Tab label="Cost Distribution" />
-      </Tabs>
+      {/* Model Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {models.map((model, idx) => (
+          <Grid item xs={12} sm={6} md={3} key={idx}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  {model.shortName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {model.provider}
+                </Typography>
+                <Typography variant="h5" fontWeight={700} color="primary">
+                  ${model.cost.toFixed(2)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {(model.tokens / 1000000).toFixed(2)}M tokens
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {model.calls} calls
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
-      {tab === 0 && (
-        <Grid container spacing={3}>
-          {models.map((model) => (
-            <Grid item xs={12} md={6} key={model.id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Box>
-                      <Typography variant="h6">{model.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {model.provider}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={model.status}
-                      color={model.status === 'active' ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </Box>
-                  <Grid container spacing={2}>
-                    <Grid item xs={4}>
-                      <Typography variant="body2" color="text.secondary">Calls</Typography>
-                      <Typography variant="body1" fontWeight={600}>{model.calls.toLocaleString()}</Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography variant="body2" color="text.secondary">Tokens</Typography>
-                      <Typography variant="body1" fontWeight={600}>{model.tokens.toLocaleString()}</Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography variant="body2" color="text.secondary">Cost</Typography>
-                      <Typography variant="body1" fontWeight={600}>${model.cost.toFixed(2)}</Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+      {/* Charts */}
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: 450 }}>
+            <CardContent>
+              <Typography variant="h5" fontWeight={600} gutterBottom>Cost by Model</Typography>
+              <ResponsiveContainer width="100%" height={380}>
+                <BarChart data={models}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="shortName" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
+                  <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                  <Bar dataKey="cost" fill="#9c27b0" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </Grid>
-      )}
-
-      {tab === 1 && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>Tokens by Model</Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={tokensByModel}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => value.toLocaleString()} />
-                <Bar dataKey="tokens">
-                  {tokensByModel.map((entry, index) => (
-                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {tab === 2 && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>Cost by Model</Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={costByModel}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-                <Bar dataKey="cost">
-                  {costByModel.map((entry, index) => (
-                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: 450 }}>
+            <CardContent>
+              <Typography variant="h5" fontWeight={600} gutterBottom>Token Distribution</Typography>
+              <ResponsiveContainer width="100%" height={380}>
+                <PieChart>
+                  <Pie
+                    data={models}
+                    dataKey="tokens"
+                    nameKey="shortName"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={130}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {models.map((entry, index) => (
+                      <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
     </Box>
   );
 }
