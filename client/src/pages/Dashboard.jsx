@@ -75,48 +75,49 @@ function Dashboard() {
     try {
       // Fetch costs
       const costsRes = await fetch('/api/v2/costs?days=30');
-      const costsData = await costsRes.json();
+      const costsJson = await costsRes.json();
+      const costsData = costsJson.summary || {};
       
       // Fetch agents
       const agentsRes = await fetch('/api/v2/agents');
-      const agentsData = await agentsRes.json();
+      const agentsJson = await agentsRes.json();
+      const agentsData = agentsJson.agents || agentsJson.data || agentsJson || [];
       
       // Fetch activity
       const activityRes = await fetch('/api/v2/activity');
-      const activityData = await activityRes.json();
+      const activityJson = await activityRes.json();
+      const activityList = activityJson.data || activityJson || [];
 
       // Calculate stats
-      const totalCosts = costsData?.summary?.total_cost || 0;
-      const totalActivities = activityData?.length || 0;
-      const activeAgents = agentsData?.length || 0;
+      const totalCosts = costsData.total_cost || 0;
+      const totalActivities = activityList.length || 0;
+      const activeAgents = Array.isArray(agentsData) ? agentsData.length : 0;
       
       // Transform activity for chart
       const activityByDay = {};
-      (activityData || []).forEach(item => {
-        const date = new Date(item.timestamp).toLocaleDateString('en-US', { weekday: 'short' });
-        activityByDay[date] = (activityByDay[date] || 0) + 1;
+      activityList.forEach(item => {
+        const timestamp = item.timestamp || item.created_at;
+        if (timestamp) {
+          const date = new Date(timestamp).toLocaleDateString('en-US', { weekday: 'short' });
+          activityByDay[date] = (activityByDay[date] || 0) + 1;
+        }
       });
       
       const activityChartData = Object.entries(activityByDay)
         .map(([name, value]) => ({ name, value }))
         .slice(0, 7);
 
-      // Transform costs for chart (last 4 weeks)
-      const costsByWeek = {};
-      (costsData || []).slice(-28).forEach(item => {
-        const week = 'Week ' + Math.ceil((new Date(item.date) - new Date(costsData[0]?.date || new Date())) / 7);
-        costsByWeek[week] = (costsByWeek[week] || 0) + (item.total_cost || 0);
-      });
-      
-      const costChartData = Object.entries(costsByWeek)
-        .map(([name, cost]) => ({ name, cost }))
-        .slice(-4);
+      // Use by_model for costs chart
+      const costChartData = (costsJson.by_model || []).slice(0, 5).map(m => ({
+        name: m.model?.split('/').pop() || 'Unknown',
+        cost: m.cost_total || 0
+      }));
 
       setStats({
         totalActivities,
         totalCosts,
         activeAgents,
-        weeklyGrowth: 0, // Could calculate based on previous period
+        weeklyGrowth: 0,
       });
       setActivityData(activityChartData.length > 0 ? activityChartData : [{ name: 'No data', value: 0 }]);
       setCostData(costChartData.length > 0 ? costChartData : [{ name: 'No data', cost: 0 }]);
@@ -214,12 +215,12 @@ function Dashboard() {
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                Cost by Week
+                Cost by Model
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={costData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis />
                   <Tooltip />
                   <Bar dataKey="cost" fill="#e91e63" />
