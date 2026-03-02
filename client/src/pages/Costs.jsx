@@ -35,14 +35,14 @@ function Costs() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch costs
+      // Fetch costs - this has OpenRouter data!
       const costsRes = await fetch(`/api/v2/costs?days=${dateRange}`);
       if (!costsRes.ok) throw new Error('Failed to fetch costs');
       const costsJson = await costsRes.json();
       const summary = costsJson.summary || {};
       const byModelData = costsJson.by_model || [];
       
-      // Transform by_model for chart
+      // Transform by_model for chart - THIS IS THE OPENROUTER DATA
       const byModelChart = byModelData.map(m => ({
         model: (m.model || '').split('/').pop() || 'Unknown',
         cost_total: parseFloat(m.cost_total || 0)
@@ -99,7 +99,7 @@ function Costs() {
         Costs
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Track and analyze your AI agent costs
+        OpenRouter costs by model, project, and agent
       </Typography>
 
       <Box sx={{ mb: 3 }}>
@@ -118,11 +118,12 @@ function Costs() {
         </FormControl>
       </Box>
 
+      {/* Stats Cards - Full Width */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
-          <Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: 120 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Total Costs</Typography>
+              <Typography variant="h6" gutterBottom>Total OpenRouter Spend</Typography>
               <Typography variant="h3" fontWeight={600} color="primary">
                 ${summary.total_cost?.toFixed(2) || '0.00'}
               </Typography>
@@ -132,8 +133,8 @@ function Costs() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: 120 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>API Calls</Typography>
               <Typography variant="h3" fontWeight={600} color="secondary">
@@ -145,11 +146,24 @@ function Costs() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: 120 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Total Tokens</Typography>
+              <Typography variant="h3" fontWeight={600} color="info.main">
+                {((summary.total_tokens || 0) / 1000000).toFixed(2)}M
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Processed
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: 120 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>Avg Cost/Call</Typography>
-              <Typography variant="h3" fontWeight={600} color="info.main">
+              <Typography variant="h3" fontWeight={600} color="warning.main">
                 ${((summary.total_cost || 0) / (summary.request_count || 1)).toFixed(4)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -160,28 +174,29 @@ function Costs() {
         </Grid>
       </Grid>
 
+      {/* Charts - FULL WIDTH and TALL */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={8}>
-          <Card>
+          <Card sx={{ height: 500 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Cost by Model</Typography>
-              <ResponsiveContainer width="100%" height={400}>
+              <Typography variant="h5" fontWeight={600} gutterBottom>OpenRouter Spend by Model</Typography>
+              <ResponsiveContainer width="100%" height={420}>
                 <BarChart data={byModel}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="model" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
+                  <XAxis dataKey="model" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={100} />
+                  <YAxis tick={{ fontSize: 14 }} tickFormatter={(v) => `$${v}`} />
                   <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-                  <Bar dataKey="cost_total" fill="#9c27b0" />
+                  <Bar dataKey="cost_total" fill="#9c27b0" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card>
+          <Card sx={{ height: 500 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Costs by Project</Typography>
-              <ResponsiveContainer width="100%" height={400}>
+              <Typography variant="h5" fontWeight={600} gutterBottom>Costs by Project</Typography>
+              <ResponsiveContainer width="100%" height={420}>
                 <PieChart>
                   <Pie
                     data={byProject}
@@ -189,8 +204,9 @@ function Costs() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={140}
+                    outerRadius={160}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={true}
                   >
                     {byProject.map((entry, index) => (
                       <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
@@ -204,16 +220,16 @@ function Costs() {
         </Grid>
       </Grid>
 
-      <Card>
+      <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>Costs by Agent</Typography>
-          <ResponsiveContainer width="100%" height={400}>
+          <Typography variant="h5" fontWeight={600} gutterBottom>Costs by Agent</Typography>
+          <ResponsiveContainer width="100%" height={450}>
             <BarChart data={byAgent} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={(v) => `$${v}`} />
-              <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+              <XAxis type="number" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 14 }} />
+              <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 14 }} />
               <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-              <Bar dataKey="cost" fill="#2196f3" />
+              <Bar dataKey="cost" fill="#2196f3" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

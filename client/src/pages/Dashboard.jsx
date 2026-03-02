@@ -34,13 +34,13 @@ const StatCard = ({ title, value, icon, color }) => (
           <Typography variant="body2" color="text.secondary" gutterBottom>
             {title}
           </Typography>
-          <Typography variant="h4" fontWeight={600}>
+          <Typography variant="h3" fontWeight={600}>
             {value}
           </Typography>
         </Box>
         <Box
           sx={{
-            p: 1.5,
+            p: 2,
             borderRadius: 2,
             bgcolor: `${color}15`,
             color: color,
@@ -73,32 +73,33 @@ function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch costs
+      // Fetch costs - this has OpenRouter data!
       const costsRes = await fetch('/api/v2/costs?days=30');
       const costsJson = await costsRes.json();
-      const costsData = costsJson.summary || {};
+      const summary = costsJson.summary || {};
+      const byModel = costsJson.by_model || [];
       
       // Fetch agents
       const agentsRes = await fetch('/api/v2/agents');
       const agentsJson = await agentsRes.json();
-      const agentsData = agentsJson.agents || agentsJson.data || agentsJson || [];
+      const agents = agentsJson.data || agentsJson.agents || agentsJson || [];
       
       // Fetch activity
       const activityRes = await fetch('/api/v2/activity');
       const activityJson = await activityRes.json();
       const activityList = activityJson.data || activityJson || [];
 
-      // Calculate stats
-      const totalCosts = costsData.total_cost || 0;
+      // Calculate stats from OpenRouter captured data
+      const totalCosts = summary.total_cost || 0;
       const totalActivities = activityList.length || 0;
-      const activeAgents = Array.isArray(agentsData) ? agentsData.length : 0;
+      const activeAgents = Array.isArray(agents) ? agents.length : 0;
       
-      // Transform activity for chart
+      // Transform activity by day
       const activityByDay = {};
       activityList.forEach(item => {
-        const timestamp = item.timestamp || item.created_at;
-        if (timestamp) {
-          const date = new Date(timestamp).toLocaleDateString('en-US', { weekday: 'short' });
+        const ts = item.timestamp || item.created_at;
+        if (ts) {
+          const date = new Date(ts).toLocaleDateString('en-US', { weekday: 'short' });
           activityByDay[date] = (activityByDay[date] || 0) + 1;
         }
       });
@@ -107,10 +108,10 @@ function Dashboard() {
         .map(([name, value]) => ({ name, value }))
         .slice(0, 7);
 
-      // Use by_model for costs chart
-      const costChartData = (costsJson.by_model || []).slice(0, 5).map(m => ({
-        name: m.model?.split('/').pop() || 'Unknown',
-        cost: m.cost_total || 0
+      // Transform costs by model - THIS IS THE OPENROUTER DATA
+      const costChartData = byModel.map(m => ({
+        name: (m.model || '').split('/').pop() || 'Unknown',
+        cost: parseFloat(m.cost_total || 0)
       }));
 
       setStats({
@@ -119,7 +120,7 @@ function Dashboard() {
         activeAgents,
         weeklyGrowth: 0,
       });
-      setActivityData(activityChartData.length > 0 ? activityChartData : [{ name: 'No data', value: 0 }]);
+      setActivityData(activityChartData.length > 0 ? activityChartData : [{ name: 'Mon', value: 0 }]);
       setCostData(costChartData.length > 0 ? costChartData : [{ name: 'No data', cost: 0 }]);
     } catch (err) {
       setError(err.message);
@@ -143,17 +144,17 @@ function Dashboard() {
   return (
     <Box>
       <Typography variant="h4" fontWeight={600} gutterBottom>
-        Welcome to RA Tracker
+        RA Tracker Dashboard
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Real-time activity tracking and analytics for your AI agents
+        OpenRouter usage and agent activity analytics
       </Typography>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Full Width */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Activities"
+            title="Total API Calls"
             value={stats.totalActivities.toLocaleString()}
             icon={<Timeline />}
             color="#9c27b0"
@@ -161,7 +162,7 @@ function Dashboard() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Costs"
+            title="Total OpenRouter Spend"
             value={`$${stats.totalCosts.toFixed(2)}`}
             icon={<AttachMoney />}
             color="#e91e63"
@@ -185,25 +186,26 @@ function Dashboard() {
         </Grid>
       </Grid>
 
-      {/* Charts */}
+      {/* Charts - FULL WIDTH and TALL */}
       <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
-          <Card>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: 500 }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Daily Activity
+              <Typography variant="h5" fontWeight={600} gutterBottom>
+                API Calls by Day
               </Typography>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={420}>
                 <AreaChart data={activityData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
+                  <XAxis dataKey="name" tick={{ fontSize: 14 }} />
+                  <YAxis tick={{ fontSize: 14 }} />
                   <Tooltip />
                   <Area
                     type="monotone"
                     dataKey="value"
                     stroke="#9c27b0"
-                    fill="rgba(156, 39, 176, 0.2)"
+                    fill="rgba(156, 39, 176, 0.3)"
+                    strokeWidth={3}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -211,19 +213,19 @@ function Dashboard() {
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%' }}>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: 500 }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Cost by Model
+              <Typography variant="h5" fontWeight={600} gutterBottom>
+                OpenRouter Spend by Model ($)
               </Typography>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={420}>
                 <BarChart data={costData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="cost" fill="#e91e63" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={100} />
+                  <YAxis tick={{ fontSize: 14 }} tickFormatter={(v) => `$${v}`} />
+                  <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                  <Bar dataKey="cost" fill="#e91e63" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
