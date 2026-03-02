@@ -20,7 +20,12 @@ function Costs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('30');
-  const [costsData, setCostsData] = useState({ summary: {}, byDay: [], byProject: [], byAgent: [] });
+  const [costsData, setCostsData] = useState({ 
+    summary: {}, 
+    byModel: [], 
+    byProject: [], 
+    byAgent: [] 
+  });
 
   useEffect(() => {
     fetchCostsData();
@@ -31,23 +36,23 @@ function Costs() {
     setError(null);
     try {
       // Fetch costs
-      const response = await fetch(`/api/v2/costs?days=${dateRange}`);
-      if (!response.ok) throw new Error('Failed to fetch costs');
-      const data = await response.json();
-      const summary = data.summary || {};
+      const costsRes = await fetch(`/api/v2/costs?days=${dateRange}`);
+      if (!costsRes.ok) throw new Error('Failed to fetch costs');
+      const costsJson = await costsRes.json();
+      const summary = costsJson.summary || {};
+      const byModelData = costsJson.by_model || [];
       
-      // Transform data for charts - handle by_model format
-      const byModel = data.by_model || [];
-      const byDay = byModel.slice(0, 14).map((item, idx) => ({
-        date: `Day ${idx + 1}`,
-        cost: parseFloat(item.cost_total || item.cost || 0)
+      // Transform by_model for chart
+      const byModelChart = byModelData.map(m => ({
+        model: (m.model || '').split('/').pop() || 'Unknown',
+        cost_total: parseFloat(m.cost_total || 0)
       }));
 
       // Get project costs
       const projectsRes = await fetch('/api/v2/projects');
       const projectsJson = await projectsRes.json();
       const projects = projectsJson.data || projectsJson.projects || projectsJson || [];
-      const byProject = (Array.isArray(projects) ? projects : []).slice(0, 6).map(p => ({
+      const byProjectData = (Array.isArray(projects) ? projects : []).slice(0, 6).map(p => ({
         name: p.name || 'Unknown',
         cost: parseFloat(p.total_cost || 0)
       }));
@@ -56,16 +61,16 @@ function Costs() {
       const agentsRes = await fetch('/api/v2/agents');
       const agentsJson = await agentsRes.json();
       const agents = agentsJson.data || agentsJson.agents || agentsJson || [];
-      const byAgent = (Array.isArray(agents) ? agents : []).slice(0, 8).map(a => ({
+      const byAgentData = (Array.isArray(agents) ? agents : []).slice(0, 8).map(a => ({
         name: a.name || 'Unknown',
         cost: parseFloat(a.total_cost || 0)
       }));
 
       setCostsData({
         summary,
-        byDay,
-        byProject,
-        byAgent
+        byModel: byModelChart,
+        byProject: byProjectData,
+        byAgent: byAgentData
       });
     } catch (err) {
       setError(err.message);
@@ -86,7 +91,7 @@ function Costs() {
     return <Alert severity="error">{error}</Alert>;
   }
 
-  const { summary, byDay, byProject, byAgent } = costsData;
+  const { summary, byModel, byProject, byAgent } = costsData;
 
   return (
     <Box>
@@ -160,7 +165,7 @@ function Costs() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Cost by Model</Typography>
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={400}>
                 <BarChart data={byModel}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="model" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
@@ -176,7 +181,7 @@ function Costs() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Costs by Project</Typography>
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={400}>
                 <PieChart>
                   <Pie
                     data={byProject}
@@ -184,7 +189,7 @@ function Costs() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={120}
+                    outerRadius={140}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
                     {byProject.map((entry, index) => (
@@ -202,7 +207,7 @@ function Costs() {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>Costs by Agent</Typography>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={400}>
             <BarChart data={byAgent} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" tickFormatter={(v) => `$${v}`} />
