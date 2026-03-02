@@ -9,7 +9,7 @@ import {
   Alert,
   Chip
 } from '@mui/material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const COLORS = ['#9c27b0', '#2196f3', '#4caf50', '#ff9800', '#f44336', '#00bcd4', '#795548', '#607d8b'];
 
@@ -28,10 +28,10 @@ function Projects() {
     setError(null);
     try {
       const response = await fetch('/api/v2/projects');
-      if (!response.ok) throw new Error('Failed to fetch projects');
-      const data = await response.json();
+      const json = await response.json();
+      const data = json.data || json.projects || json || [];
       
-      const projectsWithStatus = (data || []).map((project, idx) => ({
+      const projectsWithStatus = (Array.isArray(data) ? data : []).map((project, idx) => ({
         id: project.id || idx,
         name: project.name || 'Unknown Project',
         status: project.status || 'active',
@@ -44,11 +44,11 @@ function Projects() {
       setProjects(projectsWithStatus);
       setProjectStats({
         byCost: projectsWithStatus.map(p => ({
-          name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
+          name: (p.name || 'Unknown').length > 15 ? p.name.substring(0, 15) + '...' : p.name,
           cost: p.totalCost
         })),
         byTokens: projectsWithStatus.map(p => ({
-          name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
+          name: (p.name || 'Unknown').length > 15 ? p.name.substring(0, 15) + '...' : p.name,
           tokens: p.totalTokens
         }))
       });
@@ -98,7 +98,7 @@ function Projects() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                   <Typography variant="h6">{project.name}</Typography>
                   <Chip 
-                    label={project.status.replace('_', ' ')} 
+                    label={(project.status || 'active').replace('_', ' ')} 
                     color={getStatusColor(project.status)} 
                     size="small" 
                   />
@@ -128,7 +128,7 @@ function Projects() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Costs by Project</Typography>
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={projectStats.byCost}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
@@ -148,7 +148,7 @@ function Projects() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Tokens by Project</Typography>
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={projectStats.byTokens}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />

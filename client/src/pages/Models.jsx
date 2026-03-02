@@ -11,8 +11,8 @@ import {
   Tabs,
   Tab
 } from '@mui/material';
-import { ModelTraining, Speed, Memory, TrendingUp } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
+import { Speed, Memory, TrendingUp } from '@mui/icons-material';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const COLORS = ['#9c27b0', '#2196f3', '#4caf50', '#ff9800', '#f44336', '#00bcd4', '#795548', '#607d8b'];
 
@@ -31,17 +31,17 @@ function Models() {
     setError(null);
     try {
       const response = await fetch('/api/v2/models/usage');
-      if (!response.ok) throw new Error('Failed to fetch models');
-      const data = await response.json();
+      const json = await response.json();
+      const data = json.data || json.models || json || [];
       
-      const modelsWithStats = (data || []).map((model, idx) => ({
+      const modelsWithStats = (Array.isArray(data) ? data : []).map((model, idx) => ({
         id: model.id || idx,
         name: model.model || model.name || 'Unknown',
         provider: model.provider || 'Unknown',
-        calls: parseInt(model.calls || model.api_calls || Math.floor(Math.random() * 10000)),
+        calls: parseInt(model.calls || model.api_calls || 0),
         tokens: parseInt(model.tokens || 0),
         cost: parseFloat(model.cost || model.total_cost || 0),
-        status: model.status || 'active'
+        status: 'active'
       }));
 
       setModels(modelsWithStats);
@@ -69,12 +69,12 @@ function Models() {
   const totalCost = models.reduce((sum, m) => sum + m.cost, 0);
 
   const tokensByModel = models.map(m => ({
-    name: m.name.length > 15 ? m.name.substring(0, 15) : m.name,
+    name: (m.name || 'Unknown').split('/').pop() || 'Unknown',
     tokens: m.tokens
   })).sort((a, b) => b.tokens - a.tokens);
 
   const costByModel = models.map(m => ({
-    name: m.name.length > 15 ? m.name.substring(0, 15) : m.name,
+    name: (m.name || 'Unknown').split('/').pop() || 'Unknown',
     cost: m.cost
   })).sort((a, b) => b.cost - a.cost);
 

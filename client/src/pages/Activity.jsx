@@ -40,10 +40,10 @@ function Activity() {
     setError(null);
     try {
       const response = await fetch('/api/v2/activity');
-      if (!response.ok) throw new Error('Failed to fetch activity');
-      const data = await response.json();
+      const json = await response.json();
+      const data = json.data || json || [];
       
-      let activitiesList = (data || []).map((item, idx) => ({
+      let activitiesList = (Array.isArray(data) ? data : []).map((item, idx) => ({
         id: item.id || idx,
         type: item.type || item.event_type || 'api',
         message: item.message || item.description || `${item.agent_name || 'System'} - ${item.action || 'Activity'}`,
@@ -176,7 +176,7 @@ function Activity() {
                     }
                   />
                   <Chip
-                    label={activity.type.toUpperCase()}
+                    label={(activity.type || 'api').toUpperCase()}
                     size="small"
                     color={getTypeColor(activity.type)}
                     variant="outlined"

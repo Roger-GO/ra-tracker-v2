@@ -11,13 +11,6 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper
 } from '@mui/material';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
@@ -37,39 +30,39 @@ function Costs() {
     setLoading(true);
     setError(null);
     try {
+      // Fetch costs
       const response = await fetch(`/api/v2/costs?days=${dateRange}`);
       if (!response.ok) throw new Error('Failed to fetch costs');
       const data = await response.json();
+      const summary = data.summary || {};
       
-      // Transform data for charts
-      const byDay = Array.isArray(data) ? data.map(item => ({
-        date: new Date(item.date || item.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        cost: parseFloat(item.total_cost || item.cost || 0)
-      })) : [];
+      // Transform data for charts - handle by_model format
+      const byModel = data.by_model || [];
+      const byDay = byModel.slice(0, 14).map((item, idx) => ({
+        date: `Day ${idx + 1}`,
+        cost: parseFloat(item.cost_total || item.cost || 0)
+      }));
 
       // Get project costs
       const projectsRes = await fetch('/api/v2/projects');
-      const projectsData = await projectsRes.json();
-      const byProject = (projectsData || []).map(p => ({
+      const projectsJson = await projectsRes.json();
+      const projects = projectsJson.data || projectsJson.projects || projectsJson || [];
+      const byProject = (Array.isArray(projects) ? projects : []).slice(0, 6).map(p => ({
         name: p.name || 'Unknown',
         cost: parseFloat(p.total_cost || 0)
-      })).slice(0, 6);
+      }));
 
       // Get agent costs
       const agentsRes = await fetch('/api/v2/agents');
-      const agentsData = await agentsRes.json();
-      const byAgent = (agentsData || []).map(a => ({
+      const agentsJson = await agentsRes.json();
+      const agents = agentsJson.data || agentsJson.agents || agentsJson || [];
+      const byAgent = (Array.isArray(agents) ? agents : []).slice(0, 8).map(a => ({
         name: a.name || 'Unknown',
         cost: parseFloat(a.total_cost || 0)
-      })).slice(0, 8);
-
-      // Calculate summary
-      const totalCost = byDay.reduce((sum, d) => sum + d.cost, 0);
-      const totalCalls = byDay.reduce((sum, d) => sum + (d.calls || 0), 0);
-      const avgCost = totalCalls > 0 ? totalCost / totalCalls : 0;
+      }));
 
       setCostsData({
-        summary: { totalCost, totalCalls, avgCost },
+        summary,
         byDay,
         byProject,
         byAgent
@@ -126,7 +119,7 @@ function Costs() {
             <CardContent>
               <Typography variant="h6" gutterBottom>Total Costs</Typography>
               <Typography variant="h3" fontWeight={600} color="primary">
-                ${summary.totalCost?.toFixed(2) || '0.00'}
+                ${summary.total_cost?.toFixed(2) || '0.00'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Last {dateRange} days
@@ -139,7 +132,7 @@ function Costs() {
             <CardContent>
               <Typography variant="h6" gutterBottom>API Calls</Typography>
               <Typography variant="h3" fontWeight={600} color="secondary">
-                {summary.totalCalls?.toLocaleString() || '0'}
+                {summary.request_count?.toLocaleString() || '0'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Total calls
@@ -152,7 +145,7 @@ function Costs() {
             <CardContent>
               <Typography variant="h6" gutterBottom>Avg Cost/Call</Typography>
               <Typography variant="h3" fontWeight={600} color="info.main">
-                ${summary.avgCost?.toFixed(4) || '0.0000'}
+                ${((summary.total_cost || 0) / (summary.request_count || 1)).toFixed(4)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Per request
@@ -166,15 +159,15 @@ function Costs() {
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Cost Over Time</Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={byDay}>
+              <Typography variant="h6" gutterBottom>Cost by Model</Typography>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={byModel}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <XAxis dataKey="model" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                  <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Cost']} />
-                  <Area type="monotone" dataKey="cost" stroke="#9c27b0" fill="#9c27b0" fillOpacity={0.3} />
-                </AreaChart>
+                  <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                  <Bar dataKey="cost_total" fill="#9c27b0" />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -183,7 +176,7 @@ function Costs() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Costs by Project</Typography>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                   <Pie
                     data={byProject}
@@ -191,7 +184,7 @@ function Costs() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={100}
+                    outerRadius={120}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
                     {byProject.map((entry, index) => (
@@ -209,7 +202,7 @@ function Costs() {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>Costs by Agent</Typography>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <BarChart data={byAgent} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" tickFormatter={(v) => `$${v}`} />

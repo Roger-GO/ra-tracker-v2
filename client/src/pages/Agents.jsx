@@ -8,9 +8,8 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  CardMedia
 } from '@mui/material';
-import { SmartToy, CheckCircle, Schedule, Error, Token } from '@mui/icons-material';
+import { SmartToy, CheckCircle, Schedule, Error } from '@mui/icons-material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const COLORS = ['#9c27b0', '#2196f3', '#4caf50', '#ff9800', '#f44336', '#00bcd4', '#795548', '#607d8b'];
@@ -30,15 +29,14 @@ function Agents() {
     setError(null);
     try {
       const response = await fetch('/api/v2/agents');
-      if (!response.ok) throw new Error('Failed to fetch agents');
-      const data = await response.json();
+      const json = await response.json();
+      const data = json.data || json.agents || json || [];
       
-      const agentsWithStatus = (data || []).map((agent, idx) => ({
+      const agentsWithStatus = (Array.isArray(data) ? data : []).map((agent, idx) => ({
         id: agent.id || idx,
-        name: agent.name || 'Unknown',
-        status: agent.status || 'active',
-        tasks: agent.task_count || agent.tasks || Math.floor(Math.random() * 100),
-        runtime: agent.total_runtime || agent.runtime || '0h',
+        name: agent.name || agent.agent_id || 'Unknown',
+        status: 'active',
+        tasks: agent.task_count || Math.floor(Math.random() * 100),
         totalTokens: parseInt(agent.total_tokens || 0),
         totalCost: parseFloat(agent.total_cost || 0),
         model: agent.model || 'N/A'
@@ -46,7 +44,7 @@ function Agents() {
 
       setAgents(agentsWithStatus);
       setTokensByAgent(agentsWithStatus.map(a => ({
-        name: a.name.length > 12 ? a.name.substring(0, 12) + '...' : a.name,
+        name: (a.name || 'Unknown').length > 12 ? a.name.substring(0, 12) + '...' : a.name,
         tokens: a.totalTokens,
         cost: a.totalCost
       })));
@@ -140,7 +138,7 @@ function Agents() {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>Token Usage by Agent</Typography>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={400}>
             <BarChart data={tokensByAgent}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
